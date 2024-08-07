@@ -48,16 +48,28 @@ public:
 	bool think(Board& b);
 };
 
+class AI_minimax : public AI {
+public:
+	AI_minimax() {}
+	~AI_minimax() {}
+
+	bool think(Board& b);
+private:
+	int minimax(Board& b, int depth, bool isMax);
+	int evaluate(Board& b);
+	bool isMovesLeft(Board& b);
+};
+
 AI* AI::createAi(type type)
 {
 	switch (type) {
-		// case TYPE_ORDERED:
-	default:
+	case TYPE_ORDERED:
 		return new AI_ordered();
-		break;
+	case TYPE_MINIMAX:
+		return new AI_minimax();
+	default:
+		return nullptr;
 	}
-
-	return nullptr;
 }
 
 class Board
@@ -192,6 +204,89 @@ bool AI_ordered::think(Board& b)
 	}
 	return false;
 }
+
+bool AI_minimax::think(Board& b) {
+	int bestVal = -1000;
+	int bestMoveRow = -1;
+	int bestMoveCol = -1;
+
+	for (int i = 0; i < Board::BOARD_SIZE; i++) {
+		for (int j = 0; j < Board::BOARD_SIZE; j++) {
+			if (b.mass_[i][j].getStatus() == Mass::BLANK) {
+				b.mass_[i][j].setStatus(Mass::ENEMY);
+				int moveVal = minimax(b, 0, false);
+				b.mass_[i][j].setStatus(Mass::BLANK);
+				if (moveVal > bestVal) {
+					bestMoveRow = i;
+					bestMoveCol = j;
+					bestVal = moveVal;
+				}
+			}
+		}
+	}
+	b.mass_[bestMoveRow][bestMoveCol].setStatus(Mass::ENEMY);
+	return true;
+}
+
+int AI_minimax::minimax(Board& b, int depth, bool isMax) {
+	int score = evaluate(b);
+
+	if (score == 10)
+		return score - depth;
+	if (score == -10)
+		return score + depth;
+	if (isMovesLeft(b) == false)
+		return 0;
+
+	if (isMax) {
+		int best = -1000;
+		for (int i = 0; i < Board::BOARD_SIZE; i++) {
+			for (int j = 0; j < Board::BOARD_SIZE; j++) {
+				if (b.mass_[i][j].getStatus() == Mass::BLANK) {
+					b.mass_[i][j].setStatus(Mass::ENEMY);
+					best = std::max(best, minimax(b, depth + 1, !isMax));
+					b.mass_[i][j].setStatus(Mass::BLANK);
+				}
+			}
+		}
+		return best;
+	}
+	else {
+		int best = 1000;
+		for (int i = 0; i < Board::BOARD_SIZE; i++) {
+			for (int j = 0; j < Board::BOARD_SIZE; j++) {
+				if (b.mass_[i][j].getStatus() == Mass::BLANK) {
+					b.mass_[i][j].setStatus(Mass::PLAYER);
+					best = std::min(best, minimax(b, depth + 1, !isMax));
+					b.mass_[i][j].setStatus(Mass::BLANK);
+				}
+			}
+		}
+		return best;
+	}
+}
+
+int AI_minimax::evaluate(Board& b) {
+	// プレイヤーが勝った場合
+	if (b.calc_result() == Board::PLAYER)
+		return -10;
+	// 敵が勝った場合
+	if (b.calc_result() == Board::ENEMY)
+		return 10;
+	// その他の場合
+	return 0;
+}
+
+bool AI_minimax::isMovesLeft(Board& b) {
+	for (int i = 0; i < Board::BOARD_SIZE; i++) {
+		for (int j = 0; j < Board::BOARD_SIZE; j++) {
+			if (b.mass_[i][j].getStatus() == Mass::BLANK)
+				return true;
+		}
+	}
+	return false;
+}
+
 
 
 
